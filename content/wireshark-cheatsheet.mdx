@@ -1,0 +1,122 @@
+---
+title: "Wireshark — Analyse de Trafic Réseau"
+description: "Guide complet pour capturer et analyser le trafic réseau avec Wireshark : filtres, protocoles et techniques d'investigation."
+category: "networking"
+tags: ["wireshark", "packet-analysis", "traffic", "pcap"]
+date: "2026-02-01"
+author: "CyberVault"
+---
+
+## Introduction
+
+Wireshark est l'analyseur de protocoles réseau le plus utilisé au monde. Il permet de capturer et d'inspecter le trafic réseau en temps réel, ce qui en fait un outil indispensable pour le diagnostic réseau et l'investigation de sécurité.
+
+## Filtres d'Affichage
+
+Les filtres d'affichage permettent d'isoler les paquets pertinents dans une capture.
+
+### Filtres par Protocole
+
+<CheatSheetCode title="filtres-protocoles.txt" language="wireshark">
+```
+# Filtrer par protocole
+http
+dns
+tcp
+udp
+icmp
+arp
+tls
+
+# Combiner des filtres
+http || dns
+tcp && !arp
+```
+</CheatSheetCode>
+
+### Filtres par Adresse
+
+<CheatSheetCode title="filtres-adresses.txt" language="wireshark">
+```
+# Par adresse IP
+ip.addr == 192.168.1.1
+ip.src == 10.0.0.1
+ip.dst == 172.16.0.1
+
+# Par sous-réseau
+ip.addr == 192.168.1.0/24
+
+# Par adresse MAC
+eth.addr == aa:bb:cc:dd:ee:ff
+
+# Par port
+tcp.port == 443
+tcp.dstport == 80
+udp.port == 53
+```
+</CheatSheetCode>
+
+### Filtres Avancés
+
+| Filtre | Description |
+|--------|-------------|
+| <TechBadge variant="flag">tcp.flags.syn == 1</TechBadge> | Paquets SYN |
+| <TechBadge variant="flag">http.request.method == "GET"</TechBadge> | Requêtes HTTP GET |
+| <TechBadge variant="warning">tcp.analysis.retransmission</TechBadge> | Retransmissions TCP |
+| <TechBadge variant="protocol">dns.qry.name contains "example"</TechBadge> | Requêtes DNS spécifiques |
+
+## Capture en Ligne de Commande
+
+L'outil <TechBadge variant="tool">tshark</TechBadge> est la version CLI de Wireshark :
+
+<CheatSheetCode title="tshark-commands.sh" language="bash">
+```bash
+# Capturer sur une interface
+tshark -i eth0
+
+# Capturer avec un filtre
+tshark -i eth0 -f "port 80"
+
+# Sauvegarder dans un fichier
+tshark -i eth0 -w capture.pcap
+
+# Lire un fichier pcap
+tshark -r capture.pcap
+
+# Extraire des champs spécifiques
+tshark -r capture.pcap -T fields -e ip.src -e ip.dst -e tcp.port
+```
+</CheatSheetCode>
+
+## Analyse de Protocoles
+
+### Reconstituer un Flux TCP
+
+Pour suivre une conversation TCP complète :
+1. Clic droit sur un paquet → **Follow** → **TCP Stream**
+2. Le flux reconstitué s'affiche en couleurs (client/serveur)
+
+### Statistiques Utiles
+
+- **Statistics → Conversations** : Vue d'ensemble des communications
+- **Statistics → Protocol Hierarchy** : Répartition des protocoles
+- **Statistics → Endpoints** : Liste des hôtes actifs
+- **Statistics → I/O Graphs** : Graphiques de trafic dans le temps
+
+<NetworkDiagram title="Flux TCP - Three-Way Handshake">
+  ```
+  [Client]              [Server]
+     │                     │
+     │ ── SYN ──────────> │
+     │                     │
+     │ <──── SYN/ACK ──── │
+     │                     │
+     │ ── ACK ──────────> │
+     │                     │
+     │   Connection Open   │
+  ```
+</NetworkDiagram>
+
+## Résumé
+
+Wireshark est un outil fondamental pour comprendre ce qui se passe réellement sur un réseau. La maîtrise de ses filtres d'affichage est la clé pour une analyse efficace.

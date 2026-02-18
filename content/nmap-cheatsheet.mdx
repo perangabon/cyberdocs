@@ -1,0 +1,136 @@
+---
+title: "Nmap — Le Scanner Réseau Incontournable"
+description: "Cheat sheet complète de Nmap : scans de base, détection de services, scripts NSE et techniques avancées."
+category: "networking"
+tags: ["nmap", "scanning", "reconnaissance", "ports"]
+date: "2026-01-15"
+author: "CyberVault"
+---
+
+## Introduction
+
+Nmap (Network Mapper) est l'outil de référence pour la découverte réseau et l'audit de sécurité. Il permet d'identifier les hôtes actifs, les ports ouverts, les services et les vulnérabilités potentielles.
+
+## Scans de Base
+
+### Scan rapide d'un hôte
+
+La commande la plus simple pour scanner un hôte :
+
+<CheatSheetCode title="scan-basique.sh" language="bash">
+```bash
+# Scan des 1000 ports les plus courants
+nmap 192.168.1.1
+
+# Scan de tous les ports (1-65535)
+nmap -p- 192.168.1.1
+
+# Scan d'un sous-réseau complet
+nmap 192.168.1.0/24
+```
+</CheatSheetCode>
+
+### Options de scan essentielles
+
+| Option | Description |
+|--------|-------------|
+| <TechBadge variant="flag">-sS</TechBadge> | Scan SYN (furtif, par défaut avec root) |
+| <TechBadge variant="flag">-sT</TechBadge> | Scan TCP Connect (sans privilèges) |
+| <TechBadge variant="flag">-sU</TechBadge> | Scan UDP |
+| <TechBadge variant="flag">-sV</TechBadge> | Détection de version des services |
+| <TechBadge variant="flag">-O</TechBadge> | Détection du système d'exploitation |
+
+## Détection de Services
+
+L'option <TechBadge variant="flag">-sV</TechBadge> permet d'identifier les services et leurs versions :
+
+<CheatSheetCode title="detection-services.sh" language="bash">
+```bash
+# Détection de version + OS
+nmap -sV -O 192.168.1.1
+
+# Scan agressif (version + OS + scripts + traceroute)
+nmap -A 192.168.1.1
+
+# Définir l'intensité de détection (0-9)
+nmap -sV --version-intensity 5 192.168.1.1
+```
+</CheatSheetCode>
+
+## Scripts NSE (Nmap Scripting Engine)
+
+Le moteur de scripts NSE est l'une des fonctionnalités les plus puissantes de Nmap. Il permet d'automatiser des tâches complexes de reconnaissance.
+
+<CheatSheetCode title="scripts-nse.sh" language="bash">
+```bash
+# Exécuter les scripts par défaut
+nmap -sC 192.168.1.1
+
+# Script spécifique
+nmap --script=http-title 192.168.1.1
+
+# Catégories de scripts
+nmap --script=vuln 192.168.1.1
+nmap --script=safe 192.168.1.1
+
+# Combiner scan de version + scripts
+nmap -sV -sC 192.168.1.1
+```
+</CheatSheetCode>
+
+### Catégories de Scripts NSE
+
+| Catégorie | Description |
+|-----------|-------------|
+| <TechBadge variant="protocol">auth</TechBadge> | Scripts d'authentification |
+| <TechBadge variant="warning">vuln</TechBadge> | Détection de vulnérabilités |
+| <TechBadge variant="protocol">discovery</TechBadge> | Découverte d'informations |
+| <TechBadge variant="tool">brute</TechBadge> | Attaques par force brute |
+| <TechBadge variant="info">safe</TechBadge> | Scripts sans risque |
+
+## Techniques Avancées
+
+### Évasion et Furtivité
+
+<CheatSheetCode title="evasion.sh" language="bash">
+```bash
+# Fragmenter les paquets
+nmap -f 192.168.1.1
+
+# Spoofer l'adresse source
+nmap -S 10.0.0.1 -e eth0 192.168.1.1
+
+# Timing templates (0=paranoïaque, 5=insane)
+nmap -T2 192.168.1.1
+
+# Utiliser des leurres
+nmap -D RND:10 192.168.1.1
+```
+</CheatSheetCode>
+
+### Sortie et Rapports
+
+<CheatSheetCode title="output.sh" language="bash">
+```bash
+# Sortie dans tous les formats
+nmap -oA scan_result 192.168.1.1
+
+# Sortie XML (pour parsing)
+nmap -oX scan.xml 192.168.1.1
+
+# Sortie grepable
+nmap -oG scan.gnmap 192.168.1.1
+```
+</CheatSheetCode>
+
+<NetworkDiagram title="Architecture de scan Nmap">
+  ```
+  [Attacker]  ──SYN──>  [Firewall]  ──>  [Target:80]
+       ↑                                      │
+       └──────── SYN/ACK ◄────────────────────┘
+  ```
+</NetworkDiagram>
+
+## Résumé
+
+Nmap est un outil essentiel pour tout professionnel de la cybersécurité. Sa flexibilité et son écosystème de scripts en font un incontournable pour la reconnaissance réseau.
