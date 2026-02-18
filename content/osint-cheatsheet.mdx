@@ -1,0 +1,225 @@
+---
+title: "OSINT — Reconnaissance en Sources Ouvertes"
+description: "Techniques de collecte d'informations passives : Google Dorking, WHOIS, DNS Lookup et énumération de sous-domaines."
+category: "networking"
+tags: ["osint", "reconnaissance", "google-dork", "whois", "dns"]
+date: "2026-02-15"
+author: "@loucas"
+complexity: "beginner"
+---
+
+## Introduction
+
+L'OSINT (Open Source Intelligence) est la première phase de tout test de pénétration. Elle consiste à collecter un maximum d'informations sur la cible **sans interaction directe** avec ses systèmes. Ces données, accessibles publiquement, permettent de cartographier la surface d'attaque avant même de lancer le moindre scan.
+
+## Google Dorking
+
+Le Google Dorking exploite les opérateurs avancés du moteur de recherche pour révéler des informations sensibles indexées involontairement.
+
+### Opérateurs de Base
+
+| Opérateur                                       | Description                           |
+| ----------------------------------------------- | ------------------------------------- |
+| <TechBadge variant="flag">site:</TechBadge>     | Restreint la recherche à un domaine   |
+| <TechBadge variant="flag">intitle:</TechBadge>  | Recherche dans le titre de la page    |
+| <TechBadge variant="flag">inurl:</TechBadge>    | Recherche dans l'URL                  |
+| <TechBadge variant="flag">filetype:</TechBadge> | Filtre par type de fichier            |
+| <TechBadge variant="flag">intext:</TechBadge>   | Recherche dans le corps de la page    |
+| <TechBadge variant="flag">cache:</TechBadge>    | Affiche la version en cache de Google |
+
+### Dorks Classiques pour le Pentest
+
+<CheatSheetCode title="google-dorks.txt" language="text">
+```
+# Trouver des pages de login
+site:target.com intitle:"login" OR intitle:"admin"
+
+# Fichiers de configuration exposés
+
+site:target.com filetype:env OR filetype:xml OR filetype:conf
+
+# Répertoires ouverts (Directory Listing)
+
+site:target.com intitle:"index of" "parent directory"
+
+# Fichiers sensibles
+
+site:target.com filetype:sql OR filetype:bak OR filetype:log
+
+# Mots de passe exposés
+
+site:target.com intext:"password" filetype:txt OR filetype:log
+
+# Caméras et IoT accessibles
+
+inurl:"/view.shtml" intitle:"Live View"
+
+# Documents internes
+
+site:target.com filetype:pdf OR filetype:docx confidential
+
+````
+</CheatSheetCode>
+
+### Google Hacking Database (GHDB)
+
+La base **GHDB** d'Exploit-DB centralise des milliers de Dorks organisés par catégories : fichiers sensibles, pages vulnérables, informations réseau, etc. C'est une ressource incontournable pour automatiser la phase de reconnaissance passive.
+
+## WHOIS — Informations de Domaine
+
+Le protocole <TechBadge variant="protocol">WHOIS</TechBadge> permet d'interroger les registrars pour obtenir les informations d'enregistrement d'un nom de domaine : propriétaire, dates, serveurs DNS, etc.
+
+<CheatSheetCode title="whois-commands.sh" language="bash">
+```bash
+# Requête WHOIS classique
+whois target.com
+
+# WHOIS sur une adresse IP
+whois 93.184.216.34
+
+# Extraire uniquement le registrar et les dates
+whois target.com | grep -iE "registrar|creation|expir"
+
+# WHOIS via un serveur spécifique
+whois -h whois.ripe.net 93.184.216.34
+````
+
+</CheatSheetCode>
+
+### Informations Clés Récupérées
+
+| Champ                                                  | Utilité en Pentest                          |
+| ------------------------------------------------------ | ------------------------------------------- |
+| <TechBadge variant="info">Registrant Name</TechBadge>  | Identification du propriétaire              |
+| <TechBadge variant="info">Registrant Email</TechBadge> | Cible pour le phishing / social engineering |
+| <TechBadge variant="protocol">Name Servers</TechBadge> | Identification de l'infrastructure DNS      |
+| <TechBadge variant="info">Creation Date</TechBadge>    | Ancienneté du domaine                       |
+| <TechBadge variant="warning">Admin Contact</TechBadge> | Informations sur l'administrateur           |
+
+> **Note :** De nombreux domaines utilisent désormais des services de protection WHOIS (privacy guard). Dans ce cas, les informations personnelles sont masquées par le registrar.
+
+## DNS Lookup — Énumération DNS
+
+L'énumération DNS est essentielle pour découvrir l'infrastructure complète d'une cible : sous-domaines, serveurs mail, enregistrements de service, etc.
+
+### Commandes de Base
+
+<CheatSheetCode title="dns-lookup.sh" language="bash">
+```bash
+# Résolution simple
+nslookup target.com
+dig target.com
+
+# Requête sur un type d'enregistrement spécifique
+
+dig target.com MX # Serveurs mail
+dig target.com NS # Serveurs DNS
+dig target.com TXT # Enregistrements texte (SPF, DKIM)
+dig target.com AAAA # Adresses IPv6
+dig target.com CNAME # Alias
+
+# Résolution inverse (IP → domaine)
+
+dig -x 93.184.216.34
+
+# Transfert de zone (si autorisé)
+
+dig axfr @ns1.target.com target.com
+
+````
+</CheatSheetCode>
+
+### Types d'Enregistrements DNS
+
+| Type | Description |
+|------|-------------|
+| <TechBadge variant="protocol">A</TechBadge> | Adresse IPv4 |
+| <TechBadge variant="protocol">AAAA</TechBadge> | Adresse IPv6 |
+| <TechBadge variant="protocol">MX</TechBadge> | Serveur mail |
+| <TechBadge variant="protocol">NS</TechBadge> | Serveur DNS autoritaire |
+| <TechBadge variant="protocol">CNAME</TechBadge> | Alias de domaine |
+| <TechBadge variant="protocol">TXT</TechBadge> | Données texte (SPF, DKIM, DMARC) |
+| <TechBadge variant="protocol">SOA</TechBadge> | Start of Authority |
+| <TechBadge variant="protocol">SRV</TechBadge> | Service (protocole, port) |
+| <TechBadge variant="protocol">PTR</TechBadge> | Résolution inverse |
+
+### Énumération de Sous-domaines
+
+<CheatSheetCode title="subdomain-enum.sh" language="bash">
+```bash
+# Avec Sublist3r
+sublist3r -d target.com
+
+# Avec Amass (passif)
+amass enum -passive -d target.com
+
+# Avec ffuf (bruteforce)
+ffuf -u https://FUZZ.target.com -w /usr/share/wordlists/subdomains.txt
+
+# Avec dnsenum
+dnsenum target.com
+
+# Avec fierce
+fierce --domain target.com
+````
+
+</CheatSheetCode>
+
+## Outils Complémentaires
+
+### theHarvester — Collecte d'Emails et Sous-domaines
+
+<CheatSheetCode title="theharvester.sh" language="bash">
+```bash
+# Recherche complète sur un domaine
+theHarvester -d target.com -b all
+
+# Sources spécifiques
+
+theHarvester -d target.com -b google,bing,linkedin
+
+# Exporter les résultats en XML
+
+theHarvester -d target.com -b all -f results.xml
+
+````
+</CheatSheetCode>
+
+### Shodan — Moteur de Recherche IoT
+
+<CheatSheetCode title="shodan-cli.sh" language="bash">
+```bash
+# Rechercher les services d'une IP
+shodan host 93.184.216.34
+
+# Rechercher des services spécifiques
+shodan search "apache country:FR"
+
+# Compter les résultats
+shodan count "port:22 country:FR"
+
+# Scan d'une IP
+shodan scan submit 93.184.216.34
+````
+
+</CheatSheetCode>
+
+<NetworkDiagram title="Workflow de Reconnaissance OSINT">
+  ```
+  [Target Domain]
+       │
+       ├── WHOIS ────────> [Owner, Registrar, NS]
+       │
+       ├── DNS Enum ─────> [Subdomains, MX, A Records]
+       │
+       ├── Google Dorks ──> [Exposed Files, Login Pages]
+       │
+       ├── theHarvester ──> [Emails, Hostnames]
+       │
+       └── Shodan ────────> [Open Ports, Services, Banners]
+  ```
+</NetworkDiagram>
+
+## Résumé
+
+La phase OSINT est **critique** car elle conditionne la qualité de tout le pentest. Plus la surface d'attaque est cartographiée en amont, plus les phases suivantes (scanning, exploitation) seront efficaces. Toujours documenter minutieusement les résultats dans un rapport structuré.

@@ -1,11 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BentoCard } from "@/components/bento-card";
 import { NetworkPulseBlock } from "@/components/blocks/network-pulse-block";
 import { StatusBlock } from "@/components/blocks/status-block";
 import { TechStackBlock } from "@/components/blocks/tech-stack-block";
-import { QuickAccessBlock } from "@/components/blocks/quick-access-block";
+import { CategoryBentoBlocks } from "@/components/blocks/category-bento-blocks";
+import { SkillRadarBlock } from "@/components/blocks/skill-radar-block";
+import { WorldMapBlock } from "@/components/blocks/world-map-block";
 
 export default function DashboardHome() {
   return (
@@ -30,8 +31,14 @@ export default function DashboardHome() {
         {/* Tech Stack */}
         <TechStackBlock />
 
-        {/* Quick Access */}
-        <QuickAccessBlock />
+        {/* Triple Bento — Categories */}
+        <CategoryBentoBlocks />
+
+        {/* Skill Radar */}
+        <SkillRadarBlock />
+
+        {/* World Map */}
+        <WorldMapBlock />
       </div>
     </motion.div>
   );

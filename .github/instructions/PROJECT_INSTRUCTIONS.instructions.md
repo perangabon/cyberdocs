@@ -21,10 +21,17 @@ C'est le point le plus important pour la cohérence du projet :
 - **Palette :** Fond `#000000`, Bordures `#1A1A1A`, Accents `#00D4FF` (Networking), `#FF003C` (Offensive).
 - **Style :** Bento Grid strict, typographie nette, pas de fioritures "hacker" type Matrix.
 - **Vibe :** S'inspirer de l'image de référence (Bento, lueurs bleues, widgets minimalistes).
+- **Navigation des Notes :** Ne jamais utiliser de listes simples. Utilise un système de "Note Cards" (mini-blocs) organisés en grille, avec des icônes d'outils et des badges de difficulté/catégorie.
+- **Crédits :** Mention discrète en footer : "Built by @loucas, @peran & @vladimir".
 
 # 🛠️ STACK TECHNIQUE
 
 - Next.js 14+ (App Router), Tailwind CSS, Framer Motion, Shadcn/UI, Lucide-react, MDX.
+
+# 📜 PRINCIPES UX (AJOUTS)
+
+- **Listing Moderne :** Les pages de catégories doivent ressembler à un explorateur de fichiers "high-tech" ou une grille de composants, avec des animations de survol (hover) qui révèlent un court résumé de la note.
+- **Widgets d'Outils :** Intégration de widgets simulant des outils (ex: Terminal Nmap, Intercepteur Burp) pour dynamiser les pages de contenu.
 
 # 🗺️ ROADMAP
 
@@ -34,3 +41,22 @@ C'est le point le plus important pour la cohérence du projet :
 - [ ] T04: Command Center (Recherche CMD+K)
 - [ ] T05: Engineering Widgets (DataViz)
 - [ ] T06: Polish & Micro-interactions
+- [ ] T07 : Refonte Landing (Triple Bento Blocks)
+
+  Diviser le Quick Access en 3 blocs thématiques : Network, Offensive, Defensive.
+
+[ ] T08 : Category Pages & Grid Listing
+
+    Créer le template de listing "Modern Grid" pour explorer les notes par tag.
+
+[ ] T09 : Data Population (Mass Ingestion PDF)
+
+    Extraire et convertir le guide de Pentesting en fichiers MDX structurés.
+
+[ ] T10 : Footer & Mentions de l'équipe
+
+    Ajout de Vladimir, Peran et Loucas en bas de page.
+
+[ ] T11 : Déploiement Firebase
+
+    Configurer cybervault.ranpe.fr.

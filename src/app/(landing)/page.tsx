@@ -2,7 +2,7 @@ import { WelcomeBlock } from "@/components/blocks/welcome-block";
 import { NetworkPulseBlock } from "@/components/blocks/network-pulse-block";
 import { StatusBlock } from "@/components/blocks/status-block";
 import { TechStackBlock } from "@/components/blocks/tech-stack-block";
-import { QuickAccessBlock } from "@/components/blocks/quick-access-block";
+import { CategoryBentoBlocks } from "@/components/blocks/category-bento-blocks";
 
 export default function Home() {
   return (
@@ -21,8 +21,8 @@ export default function Home() {
         {/* Bloc 4 — Span 1x1 — Tech Stack */}
         <TechStackBlock />
 
-        {/* Bloc 5 — Span 2x1 — Quick Access */}
-        <QuickAccessBlock />
+        {/* Bloc 5 — Triple Bento — Categories */}
+        <CategoryBentoBlocks />
       </div>
     </main>
   );

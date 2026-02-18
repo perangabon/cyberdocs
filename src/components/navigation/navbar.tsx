@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Shield, Github, ChevronRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { CommandCenter } from "@/components/command-center";
 
 /** Generates breadcrumb segments from the current pathname */
 function getBreadcrumbs(pathname: string) {
@@ -107,8 +108,9 @@ export function Navbar({ sidebarCollapsed, onMobileMenuToggle }: NavbarProps) {
           </nav>
         </div>
 
-        {/* Right: Social links */}
+        {/* Right: Command Center + Social links */}
         <div className="flex items-center gap-2">
+          <CommandCenter />
           <motion.a
             href="https://github.com"
             target="_blank"

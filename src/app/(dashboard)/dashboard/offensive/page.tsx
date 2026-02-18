@@ -1,36 +1,62 @@
-"use client";
+import { Swords, FolderOpen } from "lucide-react";
+import {
+  getNotesByCategory,
+  getTagsByCategory,
+  CATEGORY_INFO,
+} from "@/lib/mdx";
+import { CategoryGrid } from "@/components/notes/category-grid";
+import { NotePageTransition } from "@/components/notes/note-page-transition";
 
-import { motion } from "framer-motion";
-import { Swords } from "lucide-react";
-import { BentoCard } from "@/components/bento-card";
+const CATEGORY = "offensive" as const;
 
 export default function OffensivePage() {
+  const info = CATEGORY_INFO[CATEGORY];
+  const notes = getNotesByCategory(CATEGORY);
+  const tags = getTagsByCategory(CATEGORY);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-    >
-      <div className="mb-6 flex items-center gap-3">
-        <Swords className="h-6 w-6 text-brand-red" />
-        <h1 className="text-2xl font-bold tracking-tight">
-          <span className="bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">
-            Offensif
-          </span>
-        </h1>
+    <NotePageTransition>
+      <div className="mb-10">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border text-brand-red border-brand-red/20 bg-brand-red/10">
+            <Swords className="h-6 w-6" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              {info.title}
+            </h1>
+            <p className="mt-1 text-sm text-brand-text-secondary">
+              {info.description}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center gap-6 border-t border-brand-border pt-4">
+          <div className="flex items-center gap-2 text-xs text-brand-text-secondary">
+            <FolderOpen className="h-3.5 w-3.5" />
+            <span>
+              {notes.length} note{notes.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-brand-text-secondary">
+            <span className="h-1 w-1 rounded-full bg-brand-text-secondary" />
+            <span>
+              {tags.length} tag{tags.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <BentoCard>
-          <h3 className="text-sm font-medium text-brand-text-secondary mb-2">
-            Notes
-          </h3>
-          <p className="text-sm text-brand-text-secondary/70">
-            Les cheat sheets offensives seront affichées ici. Le contenu sera
-            généré via le Content Engine (MDX).
+      <CategoryGrid notes={notes} tags={tags} category={CATEGORY} />
+
+      {notes.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-24 text-brand-text-secondary">
+          <FolderOpen className="mb-4 h-12 w-12 opacity-30" />
+          <p className="text-sm">
+            Aucune note dans cette catégorie pour le moment.
           </p>
-        </BentoCard>
-      </div>
-    </motion.div>
+        </div>
+      )}
+    </NotePageTransition>
   );
 }

